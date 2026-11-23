@@ -2,16 +2,29 @@ import sys
 from PyQt6.QtWidgets import QMessageBox, QTableWidget, QTableWidgetItem, QApplication, QMainWindow
 from PyQt6 import uic
 import sqlite3
+from UI.main1 import Ui_MainWindow1
+from UI.main2 import Ui_MainWindow2
+import os
+import sys
 
-class MyWidget(QMainWindow):
+def get_db_path(filename="coffee.sqlite"):
+    if getattr(sys, 'frozen', False):
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_dir, filename)
+
+db_path = get_db_path("coffee.sqlite")
+
+class MyWidget(QMainWindow, Ui_MainWindow1):
     def __init__(self):
         super().__init__()
-        uic.loadUi("main.ui", self)
+        self.setupUi(self)
         self.fill_db()
         self.btns()
 
     def update1(self):
-        with sqlite3.connect("coffee.sqlite") as con:
+        with sqlite3.connect(db_path) as con:
             cursor = con.cursor()
             query = """SELECT * from coffee"""
             res = cursor.execute(query).fetchall()
@@ -24,7 +37,7 @@ class MyWidget(QMainWindow):
                     self.tableWidget.setItem(r, c, item)
 
     def fill_db(self):
-        with sqlite3.connect("coffee.sqlite") as con:
+        with sqlite3.connect(db_path) as con:
             cursor = con.cursor()
             query = """SELECT * from coffee"""
             res = cursor.execute(query).fetchall()
@@ -53,12 +66,13 @@ class MyWidget(QMainWindow):
         self.form = AddEditFormCoffee(self, id1=id1)
         self.form.show()
         
-class AddEditFormCoffee(QMainWindow):
+class AddEditFormCoffee(QMainWindow, Ui_MainWindow2):
     def __init__(self, parent=None, id1=None):
         super().__init__()
+        self.setupUi(self)
         self.id1 = id1
         self.parent1 = parent
-        uic.loadUi("addEditCoffeeForm.ui", self)
+        self.setupUi(self)
 
         if id1 is not None:
             self.load_coffee()
@@ -72,7 +86,7 @@ class AddEditFormCoffee(QMainWindow):
             self.statusBar().showMessage("Неправильное заполнение значений")
             return
         else:
-            with sqlite3.connect("coffee.sqlite") as con:
+            with sqlite3.connect(db_path) as con:
                 cursor = con.cursor()
                 query = """UPDATE coffee
                 SET name = ?, scale_of_cooked = ?, type = ?, taste = ?, price = ?, volume = ?
@@ -82,7 +96,7 @@ class AddEditFormCoffee(QMainWindow):
             self.parent1.update1()
 
     def load_coffee(self):
-        with sqlite3.connect("coffee.sqlite") as con:
+        with sqlite3.connect(db_path) as con:
             cursor = con.cursor()
             query = """SELECT * FROM coffee WHERE id = ?"""
             res = cursor.execute(query, (self.id1,)).fetchall()
@@ -102,30 +116,30 @@ class AddEditFormCoffee(QMainWindow):
         taste1 = self.taste1.toPlainText()
         volume1 = self.volume1.toPlainText()
         type1 = self.type1.currentText()
-        if (name1.strip().isalpha() and 
-            price1.strip() and 
-            scale1.strip().isalpha() and 
-            taste1.strip().isalpha() and
-            volume1.strip() and
-            type1.strip().isalpha()):
+        if (name1.strip() and 
+            price1.strip().isdigit() and 
+            scale1.strip() and 
+            taste1.strip() and
+            volume1.strip().isdigit() and
+            type1.strip()):
             return name1, scale1, type1 , taste1, price1, volume1
         else:
             return None
 
 
     def add_row(self):
-            data = self.validate()
-            if data is None:
-                self.statusBar().showMessage("Неправильное заполнение значений")
-                return
-            else:
-                with sqlite3.connect("coffee.sqlite") as con:
-                    cursor = con.cursor()
-                    query = """INSERT INTO coffee (name, scale_of_cooked, type, taste, price, volume)
-                    VALUES (?, ?, ?, ?, ?, ?)"""
-                    cursor.execute(query, (*data,))
-                self.close()
-                self.parent1.update1()
+        data = self.validate()
+        if data is None:
+            self.statusBar().showMessage("Неправильное заполнение значений")
+            return
+        else:
+            with sqlite3.connect(db_path) as con:
+                cursor = con.cursor()
+                query = """INSERT INTO coffee (name, scale_of_cooked, type, taste, price, volume)
+                VALUES (?, ?, ?, ?, ?, ?)"""
+                cursor.execute(query, (*data,))
+            self.close()
+            self.parent1.update1()
 
 
 if __name__ == '__main__':
